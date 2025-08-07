@@ -3,13 +3,12 @@ import pandas as pd
 def normalize_vemcount_response(response_json: dict) -> pd.DataFrame:
     rows = []
 
-    # 👉 Detecteer of data in 'date_YYYY-MM-DD' structuur zit (hourly) of normale structuur (daily)
+    # Nieuw formaat → hourly data
     if "data" in response_json:
-        # Nieuwe structuur (hourly): response_json["data"]["date_YYYY-MM-DD"][shop_id]["dates"]["Label"]["data"]
-        for date_key, shops in response_json["data"].items():
-            for shop_id, content in shops.items():
-                dates = content.get("dates", {})
-                for label, hour_block in dates.items():
+        for day_key, shops in response_json["data"].items():  # e.g., "date_2025-07-31"
+            for shop_id, shop_data in shops.items():
+                dates = shop_data.get("dates", {})
+                for hour_label, hour_block in dates.items():
                     data = hour_block.get("data", {})
                     rows.append({
                         "shop_id": int(shop_id),
@@ -19,8 +18,9 @@ def normalize_vemcount_response(response_json: dict) -> pd.DataFrame:
                         "turnover": float(data.get("turnover") or 0),
                         "sales_per_visitor": float(data.get("sales_per_visitor") or 0),
                     })
+    
+    # Oud formaat → daily data
     else:
-        # Oude structuur (daily): response_json[shop_id]["dates"]["Label"]["data"]
         for shop_id, shop_content in response_json.items():
             dates = shop_content.get("dates", {})
             for date_label, day_info in dates.items():
