@@ -24,10 +24,9 @@ API_URL = st.secrets["API_URL"].rstrip("/")
 DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 
 # -----------------------------
-# API CLIENT
+# API CLIENT (GEFIXT)
 # -----------------------------
 def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
-    # ✅ Formatteer datum naar string-formaat voor API
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
 
@@ -47,17 +46,19 @@ def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
     try:
         response = requests.post(API_URL, params=params)
         st.write("📦 API response (debug)", response.text)
+
         if response.status_code == 200:
             raw_data = response.json()
-            if isinstance(raw_data, list) and len(raw_data) > 0:
-                df = pd.DataFrame(raw_data)
-                return normalize_vemcount_response(df)
+            if "data" in raw_data and raw_data["data"]:
+                df = normalize_vemcount_response(raw_data)
+                return df
             else:
                 st.warning("⚠️ De API gaf een lege dataset terug.")
         else:
             st.error(f"❌ Error fetching data: {response.status_code} - {response.text}")
     except Exception as e:
         st.error(f"🚨 API call exception: {e}")
+
     return pd.DataFrame()
 
 # -----------------------------
@@ -87,7 +88,7 @@ def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
 # STREAMLIT UI
 # -----------------------------
 st.set_page_config(page_title="Dead Hour Optimizer", layout="wide")
-st.title("🧠 Dead Hour Optimizer")
+st.title("🧐 Dead Hour Optimizer")
 st.markdown("Simuleer omzetgroei door structureel zwakke uren te verbeteren op basis van sales per visitor.")
 
 ID_TO_NAME = SHOP_NAME_MAP
@@ -100,14 +101,16 @@ days = st.slider("Analyseer over hoeveel dagen terug?", min_value=7, max_value=9
 end_date = date.today()
 start_date = end_date - timedelta(days=days)
 
-st.markdown(f"📅 Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{end_date.strftime('%Y-%m-%d')}**")
+st.markdown(f"🗓 Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{end_date.strftime('%Y-%m-%d')}**")
 
 if st.button("🔍 Analyseer Dead Hours"):
     with st.spinner("Data ophalen en analyseren..."):
         df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date)
 
-    st.write("✅ Preview van df_kpi", df_kpi.head())
+    st.write("🔁 Rijen gevonden:", len(df_kpi))
+    st.dataframe(df_kpi.head())
     st.write("✅ Columns in df_kpi:", df_kpi.columns.tolist())
+
     if not df_kpi.empty:
         df_results = find_deadhours_and_simulate(df_kpi)
 
