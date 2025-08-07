@@ -157,9 +157,12 @@ if btn:
         best_deadhours["Jaarpotentie (52w)"] = best_deadhours["extra_turnover"] * 52
         best_deadhours["Jaarpotentie (realistisch)"] = best_deadhours["extra_turnover"] * weken_over
 
-        omzet_lookup = df_results.groupby(["weekday", "hour"])["original"].mean().reset_index()
+        df["weekday"] = pd.to_datetime(df["datetime"]).dt.day_name()
+        df["hour"] = pd.to_datetime(df["datetime"]).dt.strftime("%H:00")
+        omzet_lookup = df.groupby(["weekday", "hour"])["turnover"].mean().reset_index()
+        omzet_lookup.rename(columns={"turnover": "Omzet in dead hour"}, inplace=True)
         best_deadhours = best_deadhours.merge(omzet_lookup, on=["weekday", "hour"], how="left")
-        best_deadhours.rename(columns={"original": "Omzet in dead hour"}, inplace=True)
+
 
         best_deadhours["% Groei op uur"] = (
             best_deadhours["extra_turnover"] / best_deadhours["Omzet in dead hour"]
