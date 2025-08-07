@@ -73,8 +73,8 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
 # SIMULATIE
 # -----------------------------
 def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
-    df["weekday"] = pd.to_datetime(df["timestamp"]).dt.day_name()
-    df["hour"] = pd.to_datetime(df["timestamp"]).dt.strftime("%H:00")
+    df["weekday"] = pd.to_datetime(df["datetime"]).dt.day_name()
+    df["hour"] = pd.to_datetime(df["datetime"]).dt.strftime("%H:00")
 
     df_grouped = df.groupby(["weekday", "hour"]).agg({
         "count_in": "sum",
