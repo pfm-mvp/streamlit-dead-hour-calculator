@@ -37,6 +37,7 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
         ("data_output", "conversion_rate"),
         ("data_output", "turnover"),
         ("data_output", "sales_per_visitor"),
+        ("data_output", "sales_per_transaction"),
         ("source", "shops"),
         ("period", "date"),
         ("form_date_from", start_date),
@@ -83,7 +84,8 @@ def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
         "count_in": "sum",
         "conversion_rate": "mean",
         "turnover": "sum",
-        "sales_per_visitor": "mean"
+        "sales_per_visitor": "mean",
+        "sales_per_transaction": "mean"
     }).reset_index()
 
     avg_spv = df_grouped["sales_per_visitor"].mean()
