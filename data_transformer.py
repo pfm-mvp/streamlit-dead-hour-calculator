@@ -1,33 +1,33 @@
 import pandas as pd
 
-def normalize_vemcount_response(response_json: dict) -> pd.DataFrame:
-    rows = []
+def normalize_vemcount_response(response_json):
+    records = []
 
-    # ✅ Stap 1: response bevat altijd 1 key: "data"
-    all_data = response_json.get("data", {})
+    for date_key, shop_data in response_json.get("data", {}).items():
+        for shop_id, shop_info in shop_data.items():
+            shop_metadata = shop_info.get("data", {})
+            dates = shop_info.get("dates", {})
 
-    for date_block_key, date_block in all_data.items():  # bijv. 'date_2025-08-01'
-        for shop_id, shop_content in date_block.items():
-            shop_id = int(shop_id)
-
-            # ✅ Nu per timestamp entry
-            for timestamp, content in shop_content.get("dates", {}).items():
-                data = content.get("data", {})
-
+            for timestamp, ts_info in dates.items():
                 row = {
-                    "shop_id": shop_id,
-                    "timestamp": data.get("dt"),
-                    "count_in": float(data.get("count_in") or 0),
-                    "conversion_rate": float(data.get("conversion_rate") or 0),
-                    "turnover": float(data.get("turnover") or 0),
-                    "sales_per_visitor": float(data.get("sales_per_visitor") or 0),
+                    "shop_id": shop_metadata.get("id"),
+                    "shop_name": shop_metadata.get("name"),
+                    "datetime": ts_info["data"].get("dt"),
                 }
-                rows.append(row)
 
-    df = pd.DataFrame(rows)
+                # Voeg alle andere KPI's toe (zoals sales_per_visitor, conversion_rate, enz.)
+                for kpi, value in ts_info["data"].items():
+                    if kpi != "dt":
+                        row[kpi] = float(value) if isinstance(value, str) and value.replace('.', '', 1).isdigit() else value
 
-    # ✅ Format timestamp
-    if not df.empty and "timestamp" in df.columns:
-        df["timestamp"] = pd.to_datetime(df["timestamp"])
+                records.append(row)
+
+    df = pd.DataFrame(records)
+
+    if not df.empty:
+        df['datetime'] = pd.to_datetime(df['datetime'])
+        df['hour'] = df['datetime'].dt.hour
+        df['day'] = df['datetime'].dt.day_name()
+        df = df.sort_values("datetime")
 
     return df
