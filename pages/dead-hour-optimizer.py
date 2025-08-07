@@ -181,3 +181,23 @@ if btn:
 
     else:
         st.warning("⚠️ Geen data beschikbaar voor deze periode.")
+        st.markdown("### 📋 Zwakste uur per weekdag")
+        st.dataframe(best_deadhours.rename(columns={
+            "hour": "Uur",
+            "weekday": "Weekdag",
+            "count_in": "Gem. bezoekers",
+            "conversion_rate": "Conversie",
+            "sales_per_visitor": "SPV",
+            "extra_turnover": "Potentie (€)"
+        })[["Weekdag", "Uur", "Gem. bezoekers", "Conversie", "SPV", "Potentie (€)"]].style.format({
+            "Gem. bezoekers": "{:,.0f}",
+            "Conversie": "{:.1%}",
+            "SPV": "€{:.2f}",
+            "Potentie (€)": "€{:,.0f}"
+        }), use_container_width=True)
+
+
+st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        st.warning("⚠️ Geen data beschikbaar voor deze periode.")
