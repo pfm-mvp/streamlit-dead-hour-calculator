@@ -24,7 +24,11 @@ DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 # -----------------------------
 # API CLIENT
 # -----------------------------
-def get_kpi_data_for_store(shop_id, start_date: str, end_date: str) -> pd.DataFrame:
+def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
+    # ✅ Formatteer datum naar string-formaat voor API
+    start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
+    end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
+
     params = [("data", shop_id)]
     params += [
         ("data_output", "count_in"),
@@ -35,7 +39,7 @@ def get_kpi_data_for_store(shop_id, start_date: str, end_date: str) -> pd.DataFr
         ("period", "date"),
         ("form_date_from", start_date),
         ("form_date_to", end_date),
-        ("step", "hour")  # ✅ Dit is correct, GEEN 'period_step'
+        ("step", "hour")
     ]
     try:
         response = requests.get(API_URL, params=params)
@@ -96,7 +100,7 @@ st.markdown(f"📅 Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{
 
 if st.button("🔍 Analyseer Dead Hours"):
     with st.spinner("Data ophalen en analyseren..."):
-        df_kpi = get_kpi_data_for_store(shop_id, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
+        df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date)
 
     if not df_kpi.empty:
         df_results = find_deadhours_and_simulate(df_kpi)
