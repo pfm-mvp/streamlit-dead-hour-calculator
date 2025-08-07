@@ -25,12 +25,12 @@ DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 # API CLIENT
 # -----------------------------
 def get_kpi_data_for_store(shop_id, start_date: str, end_date: str) -> pd.DataFrame:
-    params = [("data[]", shop_id)]
+    params = [("data", shop_id)]
     params += [
-        ("data_output[]", "count_in"),
-        ("data_output[]", "conversion_rate"),
-        ("data_output[]", "turnover"),
-        ("data_output[]", "sales_per_visitor"),
+        ("data_output", "count_in"),
+        ("data_output", "conversion_rate"),
+        ("data_output", "turnover"),
+        ("data_output", "sales_per_visitor"),
         ("source", "shops"),
         ("period", "date"),
         ("form_date_from", start_date),
