@@ -78,7 +78,6 @@ def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
     df_grouped["uplift"] = df_grouped.apply(
         lambda row: row["count_in"] * avg_spv if row["sales_per_visitor"] < avg_spv else row["turnover"], axis=1)
     df_grouped["extra_turnover"] = df_grouped["uplift"] - df_grouped["turnover"]
-    df_grouped["growth_pct"] = (df_grouped["extra_turnover"] / df_grouped["turnover"]).replace([np.inf, -np.inf], 0)
 
     return df_grouped.sort_values("extra_turnover", ascending=False)
 
@@ -159,27 +158,38 @@ if btn:
 
         df_kpi["weekday"] = pd.to_datetime(df_kpi["datetime"]).dt.day_name()
         df_kpi["hour"] = pd.to_datetime(df_kpi["datetime"]).dt.strftime("%H:00")
-        omzet_lookup = df_kpi.groupby(["weekday", "hour"])["turnover"].mean().reset_index()
-        omzet_lookup.rename(columns={"turnover": "Omzet in dead hour"}, inplace=True)
-        best_deadhours = best_deadhours.merge(omzet_lookup, on=["weekday", "hour"], how="left")
-        best_deadhours["Omzet in dead hour"] = best_deadhours["Omzet in dead hour"].fillna(0)
 
-        best_deadhours["% Groei op uur"] = (
-            best_deadhours["extra_turnover"] / best_deadhours["Omzet in dead hour"]
-        ) * 100
-        best_deadhours["% Groei op uur"] = best_deadhours["% Groei op uur"].replace([np.inf, -np.inf], 0).round(1)
+        # KPI merge: bezoekers, conversie, ATV
+        kpi_lookup = df_kpi.groupby(["weekday", "hour"]).agg({
+            "count_in": "mean",
+            "conversion_rate": "mean",
+            "sales_per_transaction": "mean"
+        }).reset_index().rename(columns={
+            "count_in": "Bezoekers",
+            "conversion_rate": "Conversie (%)",
+            "sales_per_transaction": "ATV (€)"
+        })
+        best_deadhours = best_deadhours.merge(kpi_lookup, on=["weekday", "hour"], how="left")
+        best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]] = best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]].fillna(0)
+        best_deadhours["Conversie (%)"] = best_deadhours["Conversie (%)"] * 100
+
+        # Impacttekst
+        top_5 = best_deadhours.nlargest(5, "extra_turnover")
+        week_sum = top_5["extra_turnover"].sum()
+        year_sum = week_sum * weken_over
+
+        st.markdown(
+            f"💡 **Top 5 momenten** = €{week_sum:,.0f} / week ≈ **€{year_sum:,.0f} extra omzet/jaar**"
+        )
 
         ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
         best_deadhours = best_deadhours.sort_values("weekday")
 
-        top_row = best_deadhours.iloc[0]
-        st.markdown(f"💡 Grootste kans ligt op **{top_row['weekday']} om {top_row['hour']}** – omzetpotentie: **€{top_row['extra_turnover']:.0f} per week**")
-
         st.dataframe(best_deadhours[[
             "weekday", "hour", "extra_turnover",
             "Jaarpotentie (52w)", "Jaarpotentie (realistisch)",
-            "Omzet in dead hour", "% Groei op uur"
+            "Bezoekers", "Conversie (%)", "ATV (€)"
         ]].rename(columns={
             "weekday": "Weekdag",
             "hour": "Uur",
@@ -188,8 +198,9 @@ if btn:
             "Extra omzet (per week)": "€{:,.0f}",
             "Jaarpotentie (52w)": "€{:,.0f}",
             "Jaarpotentie (realistisch)": "€{:,.0f}",
-            "Omzet in dead hour": "€{:,.0f}",
-            "% Groei op uur": "{:.1f}%"
+            "Bezoekers": "{:,.0f}",
+            "Conversie (%)": "{:.1f}%",
+            "ATV (€)": "€{:,.0f}"
         }), use_container_width=True)
 
         st.caption("💡 *SPV = Conversie × Bonbedrag (ATV)* — deze tabel laat zien hoeveel extra omzet te winnen is per uur per weekdag.")
