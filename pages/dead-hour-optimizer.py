@@ -138,12 +138,21 @@ if st.button("🔍 Analyseer Dead Hours"):
         df_results = find_deadhours_and_simulate(df_kpi)
 
         st.subheader(f"📊 Dead hours voor {selected_name}")
-        display_df = df_results[["weekday", "hour", "count_in", "conversion_rate", "sales_per_visitor", "original", "uplift", "extra_turnover"]].copy()
-        display_df.columns = ["Weekdag", "Uur", "Bezoekers", "Conversie (%)", "SPV", "Originele omzet", "Nieuwe omzet", "Extra omzet"]
+        display_df = df_results[[
+            "weekday", "hour", "count_in", "conversion_rate",
+            "sales_per_visitor", "sales_per_transaction",
+            "original", "uplift", "extra_turnover"
+        ]].copy()
+
+        display_df.columns = [
+            "Weekdag", "Uur", "Bezoekers", "Conversie (%)",
+            "SPV", "Bonbedrag (ATV)", "Originele omzet", "Nieuwe omzet", "Extra omzet"
+        ]
 
         st.dataframe(display_df.style.format({
             "Conversie (%)": "{:.1f}",
             "SPV": "€{:,.2f}",
+            "Bonbedrag (ATV)": "€{:,.2f}",
             "Originele omzet": "€{:,.0f}",
             "Nieuwe omzet": "€{:,.0f}",
             "Extra omzet": "€{:,.0f}"
