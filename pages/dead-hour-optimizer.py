@@ -35,7 +35,7 @@ def get_kpi_data_for_store(shop_id, start_date: str, end_date: str) -> pd.DataFr
         ("period", "date"),
         ("form_date_from", start_date),
         ("form_date_to", end_date),
-        ("period_step", "hour")
+        ("step", "hour")  # ✅ Dit is correct, GEEN 'period_step'
     ]
     try:
         response = requests.get(API_URL, params=params)
@@ -44,6 +44,8 @@ def get_kpi_data_for_store(shop_id, start_date: str, end_date: str) -> pd.DataFr
             if isinstance(raw_data, list) and len(raw_data) > 0:
                 df = pd.DataFrame(raw_data)
                 return normalize_vemcount_response(df)
+            else:
+                st.warning("⚠️ De API gaf een lege dataset terug.")
         else:
             st.error(f"❌ Error fetching data: {response.status_code} - {response.text}")
     except Exception as e:
