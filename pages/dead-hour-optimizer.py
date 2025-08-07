@@ -13,6 +13,7 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/../'))
 
 # ✅ Nu pas importeren
 from shop_mapping import SHOP_NAME_MAP
+st.write("Loaded mapping:", SHOP_NAME_MAP)
 from data_transformer import normalize_vemcount_response
 
 # -----------------------------
