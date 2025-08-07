@@ -133,7 +133,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-btn = st.button("🔍 Analyseer Dead Hours", type="primary")
+btn = st.button("Analyseer Dead Hours", type="primary")
 if btn:
 
     start_hour, end_hour = opening_hours
