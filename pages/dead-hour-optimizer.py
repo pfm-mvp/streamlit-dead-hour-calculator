@@ -187,9 +187,7 @@ if btn:
         }).style.format({
             "Extra omzet (per week)": "€{:,.0f}",
             "Jaarpotentie (52w)": "€{:,.0f}",
-            "Jaarpotentie (realistisch)": "€{:,.0f}",
-            "Omzet in dead hour": "€{:,.0f}",
-            "% Groei op uur": "{:.1f}%"
+            "Jaarpotentie (realistisch)": "€{:,.0f}"
         }), use_container_width=True)
 
         st.caption("💡 *SPV = Conversie × Bonbedrag (ATV)* — deze tabel laat zien hoeveel extra omzet te winnen is per uur per weekdag.")
