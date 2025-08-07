@@ -112,7 +112,16 @@ opening_hours = st.slider(
 
 st.markdown(f"🗓 Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{end_date.strftime('%Y-%m-%d')}**")
 
-if st.button("🔍 Analyseer Dead Hours"):
+
+toggle = st.radio(
+    "🔁 Toon omzetpotentie op basis van:",
+    ["Resterend jaar", "Volledig jaar (52 weken)"],
+    horizontal=True
+)
+
+btn = st.button("🔍 Analyseer Dead Hours", type="primary")
+if btn:
+
     start_hour, end_hour = opening_hours
     with st.spinner("Data ophalen en analyseren..."):
         df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour)
@@ -136,7 +145,7 @@ if st.button("🔍 Analyseer Dead Hours"):
 
         vandaag = date.today()
         jaar_einde = date(vandaag.year, 12, 31)
-        weken_over = ((jaar_einde - vandaag).days) // 7
+        weken_over = 52 if toggle == "Volledig jaar (52 weken)" else ((jaar_einde - vandaag).days) // 7
 
         best_deadhours["Jaarpotentie"] = best_deadhours["extra_turnover"] * weken_over
         best_deadhours["Omzet_in_dead_hour"] = 800 * weken_over  # placeholder value
@@ -161,7 +170,7 @@ if st.button("🔍 Analyseer Dead Hours"):
             best_deadhours,
             x="extra_turnover",
             y="weekday",
-            color="hour",
+            color="hour", color_discrete_sequence=px.colors.sequential.Viridis,
             orientation="h",
             labels={"extra_turnover": "Extra omzet (€)", "weekday": "Weekdag", "hour": "Uur"},
             title="Dead Hours met hoogste omzetpotentie per weekdag"
