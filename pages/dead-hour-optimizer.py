@@ -8,6 +8,8 @@ import requests
 import plotly.express as px
 from datetime import date, timedelta
 
+st.cache_data.clear()  # 🚨 Forceer het legen van de cache vóór de import
+
 # 👇 Zet dit vóór de import!
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/../'))
 
