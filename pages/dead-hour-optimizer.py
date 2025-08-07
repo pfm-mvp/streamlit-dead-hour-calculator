@@ -134,67 +134,86 @@ if btn:
     with st.spinner("Data ophalen en analyseren..."):
         df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour)
 
-    if not df_kpi.empty:
-        df_results = find_deadhours_and_simulate(df_kpi)
 
-        # ➕ Beste Dead Hour per Weekdag
-        st.markdown("### 🔥 Dead Hours per Weekdag (gemiddelde omzetpotentie)")
+if not df_kpi.empty:
+    df_results = find_deadhours_and_simulate(df_kpi)
 
-        best_deadhours = (
-            df_results[df_results["extra_turnover"] > 0]
-            .groupby(["weekday", "hour"])["extra_turnover"]
-            .mean()
-            .reset_index()
-            .sort_values("extra_turnover", ascending=False)
-            .groupby("weekday")
-            .head(1)
-            .reset_index(drop=True)
-        )
+    # 🔥 Dead Hours per Weekdag
+    st.markdown("### 🔥 Dead Hours per Weekdag (gemiddelde omzetpotentie)")
 
-        vandaag = date.today()
-        jaar_einde = date(vandaag.year, 12, 31)
-        weken_over = 52 if toggle == "Volledig jaar (52 weken)" else ((jaar_einde - vandaag).days) // 7
+    best_deadhours = (
+        df_results[df_results["extra_turnover"] > 0]
+        .groupby(["weekday", "hour"])["extra_turnover"]
+        .mean()
+        .reset_index()
+        .sort_values("extra_turnover", ascending=False)
+        .groupby("weekday")
+        .head(1)
+        .reset_index(drop=True)
+    )
 
-        best_deadhours["Jaarpotentie (52w)"] = best_deadhours["extra_turnover"] * 52
-        best_deadhours["Jaarpotentie (realistisch)"] = best_deadhours["extra_turnover"] * weken_over
-        best_deadhours["% Groei op uur"] = (
-            best_deadhours["Jaarpotentie (realistisch)"] / (best_deadhours["extra_turnover"] * weken_over) * 100
-        ).replace([np.inf, -np.inf], 0).round(1)
+    vandaag = date.today()
+    jaar_einde = date(vandaag.year, 12, 31)
+    weken_over = 52 if toggle == "Volledig jaar (52 weken)" else ((jaar_einde - vandaag).days) // 7
 
-        top_row = best_deadhours.iloc[0]
-        st.markdown(f"💡 Grootste kans ligt op **{top_row['weekday']} om {top_row['hour']}** – omzetpotentie: **€{top_row['extra_turnover']:.0f} per week**")
+    best_deadhours["Jaarpotentie (52w)"] = best_deadhours["extra_turnover"] * 52
+    best_deadhours["Jaarpotentie (realistisch)"] = best_deadhours["extra_turnover"] * weken_over
 
-        ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-        best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
-        best_deadhours = best_deadhours.sort_values("weekday")
+    # Haal originele omzet per dead hour op
+    omzet_lookup = df_results.groupby(["weekday", "hour"])["original"].mean().reset_index()
+    best_deadhours = best_deadhours.merge(omzet_lookup, on=["weekday", "hour"], how="left")
+    best_deadhours.rename(columns={"original": "Omzet in dead hour"}, inplace=True)
 
-        display_df = best_deadhours.rename(columns={
-            "weekday": "Weekdag",
-            "hour": "Uur",
-            "extra_turnover": "Extra omzet (per week)",
-            "Jaarpotentie (52w)": "Jaarpotentie (52w)",
-            "Jaarpotentie (realistisch)": "Jaarpotentie (realistisch)",
-            "% Groei op uur": "% Groei op uur"
-        })
+    # Bereken groei %
+    best_deadhours["% Groei op uur"] = (
+        best_deadhours["extra_turnover"] / best_deadhours["Omzet in dead hour"]
+    ) * 100
+    best_deadhours["% Groei op uur"] = best_deadhours["% Groei op uur"].replace([np.inf, -np.inf], 0).round(1)
 
-        st.dataframe(display_df.style.format({
-            "Extra omzet (per week)": "€{:,.0f}",
-            "Jaarpotentie (52w)": "€{:,.0f}",
-            "Jaarpotentie (realistisch)": "€{:,.0f}",
-            "% Groei op uur": "{:.1f}%"
-        }), use_container_width=True)
+    # Sorteer weekdays
+    ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
+    best_deadhours = best_deadhours.sort_values("weekday")
 
-        fig2 = px.bar(
-            display_df,
-            x="Extra omzet (per week)",
-            y="Weekdag",
-            color="Uur",
-            orientation="h",
-            labels={"Extra omzet (per week)": "Extra omzet (€)"},
-            title="Dead Hours met hoogste omzetpotentie per weekdag",
-            color_discrete_sequence=px.colors.sequential.Viridis
-        )
-        fig2.update_layout(xaxis_tickprefix="€", yaxis_title="Weekdag", legend_title="Uur")
-        st.plotly_chart(fig2, use_container_width=True)
+    # Toon intro
+    top_row = best_deadhours.iloc[0]
+    st.markdown(f"💡 Grootste kans ligt op **{top_row['weekday']} om {top_row['hour']}** – omzetpotentie: **€{top_row['extra_turnover']:.0f} per week**")
+
+    # Toon tabel
+    st.dataframe(best_deadhours[[
+        "weekday", "hour", "extra_turnover",
+        "Jaarpotentie (52w)", "Jaarpotentie (realistisch)",
+        "Omzet in dead hour", "% Groei op uur"
+    ]].rename(columns={
+        "weekday": "Weekdag",
+        "hour": "Uur",
+        "extra_turnover": "Extra omzet (per week)",
+    }).style.format({
+        "Extra omzet (per week)": "€{:,.0f}",
+        "Jaarpotentie (52w)": "€{:,.0f}",
+        "Jaarpotentie (realistisch)": "€{:,.0f}",
+        "Omzet in dead hour": "€{:,.0f}",
+        "% Groei op uur": "{:.1f}%"
+    }), use_container_width=True)
+
+    st.caption("💡 *SPV = Conversie × Bonbedrag (ATV)* — deze tabel laat zien hoeveel extra omzet te winnen is per uur per weekdag.")
+
+    # Grafiek
+    fig2 = px.bar(
+        best_deadhours,
+        x="extra_turnover",
+        y="weekday",
+        color="hour",
+        orientation="h",
+        labels={"extra_turnover": "Extra omzet (€)", "weekday": "Weekdag", "hour": "Uur"},
+        title="Dead Hours met hoogste omzetpotentie per weekdag",
+        color_discrete_sequence=px.colors.sequential.Viridis
+    )
+    fig2.update_layout(
+        xaxis_tickprefix="€",
+        yaxis_title="Weekdag",
+        legend_title="Uur"
+    )
+    st.plotly_chart(fig2, use_container_width=True)
     else:
         st.warning("⚠️ Geen data beschikbaar voor deze periode.")
