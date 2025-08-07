@@ -26,7 +26,7 @@ DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 # -----------------------------
 # API CLIENT (GEFIXT)
 # -----------------------------
-def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
+def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) -> pd.DataFrame:
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
 
@@ -40,7 +40,9 @@ def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
         ("period", "date"),
         ("form_date_from", start_date),
         ("form_date_to", end_date),
-        ("step", "hour")
+        ("step", "hour"),
+        ("show_hours_from", f"{start_hour:02d}:00"),
+        ("show_hours_to", f"{end_hour:02d}:00")
     ]
 
     try:
@@ -101,11 +103,21 @@ days = st.slider("Analyseer over hoeveel dagen terug?", min_value=7, max_value=9
 end_date = date.today()
 start_date = end_date - timedelta(days=days)
 
+opening_hours = st.slider(
+    "⏰ Selecteer openingstijden",
+    min_value=0,
+    max_value=24,
+    value=(9, 19),
+    step=1,
+    format="%02d:00"
+)
+
 st.markdown(f"🗓 Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{end_date.strftime('%Y-%m-%d')}**")
 
 if st.button("🔍 Analyseer Dead Hours"):
+    start_hour, end_hour = opening_hours
     with st.spinner("Data ophalen en analyseren..."):
-        df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date)
+        df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour)
 
     st.write("🔁 Rijen gevonden:", len(df_kpi))
     st.dataframe(df_kpi.head())
