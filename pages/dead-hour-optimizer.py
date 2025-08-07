@@ -58,6 +58,8 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
             raw_data = response.json()
             if "data" in raw_data and raw_data["data"]:
                 df = normalize_vemcount_response(raw_data)
+                df["hour"] = pd.to_datetime(df["datetime"]).dt.hour
+                df = df[(df["hour"] >= start_hour) & (df["hour"] < end_hour)
                 return df
             else:
                 st.warning("⚠️ De API gaf een lege dataset terug.")
@@ -75,6 +77,7 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
 def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
     df["weekday"] = pd.to_datetime(df["datetime"]).dt.day_name()
     df["hour"] = pd.to_datetime(df["datetime"]).dt.strftime("%H:00")
+    df["datetime"] = pd.to_datetime(df["datetime"])
 
     df_grouped = df.groupby(["weekday", "hour"]).agg({
         "count_in": "sum",
