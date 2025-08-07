@@ -33,9 +33,9 @@ def get_kpi_data_for_store(shop_id, start_date: str, end_date: str) -> pd.DataFr
         ("data_output", "sales_per_visitor"),
         ("source", "shops"),
         ("period", "date"),
-        ("from", start_date),
-        ("to", end_date),
-        ("interval", "hour")
+        ("form_date_from", start_date),
+        ("form_date_to", end_date),
+        ("period_step", "hour")
     ]
     try:
         response = requests.get(API_URL, params=params)
@@ -86,11 +86,11 @@ NAME_TO_ID = {v: k for k, v in SHOP_NAME_MAP.items()}
 selected_name = st.selectbox("Selecteer een winkel", options=list(NAME_TO_ID.keys()), index=0)
 shop_id = NAME_TO_ID[selected_name]
 
-weeks = st.slider("Analyseer over hoeveel dagen terug?", min_value=7, max_value=90, step=7, value=30)
+days = st.slider("Analyseer over hoeveel dagen terug?", min_value=7, max_value=90, step=7, value=30)
 end_date = date.today()
-start_date = end_date - timedelta(days=weeks)
+start_date = end_date - timedelta(days=days)
 
-st.markdown(f"🗓️ Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{end_date.strftime('%Y-%m-%d')}**")
+st.markdown(f"📅 Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{end_date.strftime('%Y-%m-%d')}**")
 
 if st.button("🔍 Analyseer Dead Hours"):
     with st.spinner("Data ophalen en analyseren..."):
