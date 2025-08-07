@@ -45,12 +45,10 @@ def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
     try:
         response = requests.post(API_URL, params=params)
         if response.status_code == 200:
-            raw_data = response.json()
-            if isinstance(raw_data, list) and len(raw_data) > 0:
-                df = pd.DataFrame(raw_data)
-                return normalize_vemcount_response(df)
-            else:
-                st.warning("⚠️ De API gaf een lege dataset terug.")
+            full_response = response.json()
+            if "data" in full_response and "last_year" in full_response["data"]:
+                raw_data = full_response["data"]["last_year"]
+                return normalize_vemcount_response(raw_data)
         else:
             st.error(f"❌ Error fetching data: {response.status_code} - {response.text}")
     except Exception as e:
