@@ -119,21 +119,7 @@ toggle = st.radio(
     horizontal=True
 )
 
-st.markdown("""
-    <style>
-    div.stButton > button:first-child {
-        background-color: #F04438;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 1rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-btn = st.button("Analyseer Dead Hours", type="primary")
+btn = st.button("🔍 Analyseer Dead Hours", type="primary")
 if btn:
 
     start_hour, end_hour = opening_hours
