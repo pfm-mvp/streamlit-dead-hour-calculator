@@ -46,7 +46,7 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
     ]
 
     try:
-        response = requests.post(API_URL, params=params)
+        response = requests.post(API_URL, json={key: value for key, value in params})
         st.write("📦 API response (debug)", response.text)
 
         if response.status_code == 200:
