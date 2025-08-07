@@ -232,10 +232,18 @@ if btn:
             category_orders={"weekday": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
         )
         fig2.update_layout(
-            xaxis_tickprefix="€",
-            yaxis_title="Weekdag",
-            legend_title="Uur"
-        )
+    xaxis_tickprefix="€",
+    yaxis_title="Weekdag",
+    legend_title="Uur",
+    hoverlabel=dict(
+        namelength=-1,
+        bgcolor="white",
+        font_size=14,
+        font_family="Arial"
+    ),
+    hovermode="closest",
+    xaxis_tickformat=",.2f"
+)
         st.plotly_chart(fig2, use_container_width=True)
 
     else:
