@@ -27,8 +27,6 @@ DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 # -----------------------------
 # API CLIENT (GEFIXT)
 # -----------------------------
-from urllib.parse import urlencode
-
 def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) -> pd.DataFrame:
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
