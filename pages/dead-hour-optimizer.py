@@ -107,6 +107,8 @@ if st.button("🔍 Analyseer Dead Hours"):
     with st.spinner("Data ophalen en analyseren..."):
         df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date)
 
+    st.write("✅ Preview van df_kpi", df_kpi.head())
+    st.write("✅ Columns in df_kpi:", df_kpi.columns.tolist())
     if not df_kpi.empty:
         df_results = find_deadhours_and_simulate(df_kpi)
 
