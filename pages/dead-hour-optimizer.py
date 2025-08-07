@@ -107,6 +107,10 @@ opening_hours = st.slider(
     format="%02d:00"
 )
 
+min_visitors = st.slider("Minimaal gemiddeld aantal bezoekers per uur (filter)", min_value=0, max_value=20, value=2, step=1)
+
+filter_transactions = st.checkbox("Toon alleen uren met transacties")
+
 toggle = st.radio(
     "🔁 Toon omzetpotentie op basis van:",
     ["Resterend jaar", "Volledig jaar (52 weken)"],
@@ -159,7 +163,6 @@ if btn:
         df_kpi["weekday"] = pd.to_datetime(df_kpi["datetime"]).dt.day_name()
         df_kpi["hour"] = pd.to_datetime(df_kpi["datetime"]).dt.strftime("%H:00")
 
-        # KPI merge: bezoekers, conversie, ATV
         kpi_lookup = df_kpi.groupby(["weekday", "hour"]).agg({
             "count_in": "mean",
             "conversion_rate": "mean",
@@ -169,11 +172,16 @@ if btn:
             "conversion_rate": "Conversie (%)",
             "sales_per_transaction": "ATV (€)"
         })
+
         best_deadhours = best_deadhours.merge(kpi_lookup, on=["weekday", "hour"], how="left")
         best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]] = best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]].fillna(0)
-        best_deadhours["Conversie (%)"] = best_deadhours["Conversie (%)"] * 100
 
-        # Impacttekst
+        best_deadhours = best_deadhours[best_deadhours["Bezoekers"] >= min_visitors]
+        if filter_transactions:
+            best_deadhours = best_deadhours[best_deadhours["ATV (€)"] > 0]
+
+        best_deadhours["Conversie (%)"] = best_deadhours["Conversie (%)"].apply(lambda x: x*100 if x < 1 else x)
+
         top_5 = best_deadhours.nlargest(5, "extra_turnover")
         week_sum = top_5["extra_turnover"].sum()
         year_sum = week_sum * weken_over
@@ -185,6 +193,13 @@ if btn:
         ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
         best_deadhours = best_deadhours.sort_values("weekday")
+
+        with st.expander("📊 Uitleg kolommen"):
+            st.markdown("""
+            - **Bezoekers** = Gemiddeld aantal bezoekers per week op dat uur
+            - **Conversie (%)** = Gemiddeld conversiepercentage (aantal transacties / aantal bezoekers)
+            - **ATV (€)** = Gemiddeld bonbedrag per transactie op dat uur
+            """)
 
         st.dataframe(best_deadhours[[
             "weekday", "hour", "extra_turnover",
