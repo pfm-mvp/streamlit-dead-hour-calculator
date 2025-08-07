@@ -195,7 +195,7 @@ if btn:
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
 
         fig2 = px.bar(
-            best_deadhours,
+            best_deadhours.sort_values("weekday"),
             x="extra_turnover",
             y="weekday",
             color="hour",
