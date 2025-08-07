@@ -190,6 +190,9 @@ if btn:
         }), use_container_width=True)
 
         st.caption("💡 *SPV = Conversie × Bonbedrag (ATV)* — deze tabel laat zien hoeveel extra omzet te winnen is per uur per weekdag.")
+        
+        ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
 
         fig2 = px.bar(
             best_deadhours,
