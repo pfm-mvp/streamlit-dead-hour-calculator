@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import requests
 import plotly.express as px
-from datetime import date
+from datetime import date, timedelta
 
 # 👇 Zet dit vóór de import!
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/../'))
@@ -24,7 +24,7 @@ DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 # -----------------------------
 # API CLIENT
 # -----------------------------
-def get_kpi_data_for_store(shop_id, period="last_8_weeks", step="hour"):
+def get_kpi_data_for_store(shop_id, start_date: str, end_date: str) -> pd.DataFrame:
     params = [("data", shop_id)]
     params += [
         ("data_output", "count_in"),
@@ -32,16 +32,18 @@ def get_kpi_data_for_store(shop_id, period="last_8_weeks", step="hour"):
         ("data_output", "turnover"),
         ("data_output", "sales_per_visitor"),
         ("source", "shops"),
-        ("period", period),
-        ("step", step)
+        ("period", "date"),
+        ("from", start_date),
+        ("to", end_date),
+        ("interval", "hour")
     ]
     try:
-        response = requests.post(API_URL, params=params)
+        response = requests.get(API_URL, params=params)
         if response.status_code == 200:
-            full_response = response.json()
-            if "data" in full_response and period in full_response["data"]:
-                raw_data = full_response["data"][period]
-                return normalize_vemcount_response(raw_data)
+            raw_data = response.json()
+            if isinstance(raw_data, list) and len(raw_data) > 0:
+                df = pd.DataFrame(raw_data)
+                return normalize_vemcount_response(df)
         else:
             st.error(f"❌ Error fetching data: {response.status_code} - {response.text}")
     except Exception as e:
@@ -84,11 +86,15 @@ NAME_TO_ID = {v: k for k, v in SHOP_NAME_MAP.items()}
 selected_name = st.selectbox("Selecteer een winkel", options=list(NAME_TO_ID.keys()), index=0)
 shop_id = NAME_TO_ID[selected_name]
 
-period = st.selectbox("Kies analyseperiode", options=["last_4_weeks", "last_8_weeks", "last_12_weeks"], index=1)
+weeks = st.slider("Analyseer over hoeveel dagen terug?", min_value=7, max_value=90, step=7, value=30)
+end_date = date.today()
+start_date = end_date - timedelta(days=weeks)
+
+st.markdown(f"🗓️ Analyseperiode: **{start_date.strftime('%Y-%m-%d')}** t/m **{end_date.strftime('%Y-%m-%d')}**")
 
 if st.button("🔍 Analyseer Dead Hours"):
     with st.spinner("Data ophalen en analyseren..."):
-        df_kpi = get_kpi_data_for_store(shop_id, period=period)
+        df_kpi = get_kpi_data_for_store(shop_id, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
 
     if not df_kpi.empty:
         df_results = find_deadhours_and_simulate(df_kpi)
