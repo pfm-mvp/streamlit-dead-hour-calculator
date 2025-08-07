@@ -27,6 +27,8 @@ DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 # -----------------------------
 # API CLIENT (GEFIXT)
 # -----------------------------
+from urllib.parse import urlencode
+
 def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) -> pd.DataFrame:
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
@@ -46,14 +48,13 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
         ("show_hours_to", f"{end_hour:02d}:00")
     ]
 
+    # 🔐 Belangrijk: encode querystring zónder %3A in tijdvelden
+    query_string = urlencode(params, doseq=True).replace('%3A', ':')
+    url = f"{API_URL}?{query_string}"
+
     try:
-        # HACK: manual querystring to avoid encoding :
-        query_string = urlencode(params, doseq=True).replace('%3A', ':')
-        url = f"{API_URL}?{query_string}"
-        response = requests.post(url)
-
+        response = requests.post(url)  # GEEN params, alles zit in URL
         st.write("📦 API response (debug)", response.text)
-
 
         if response.status_code == 200:
             raw_data = response.json()
@@ -68,6 +69,7 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
         st.error(f"🚨 API call exception: {e}")
 
     return pd.DataFrame()
+
 
 # -----------------------------
 # SIMULATIE
