@@ -1,3 +1,4 @@
+
 # 📊 Dead Hour Optimizer – Streamlit
 
 import streamlit as st
@@ -8,25 +9,17 @@ import requests
 import plotly.express as px
 from datetime import date, timedelta
 from urllib.parse import urlencode
+import numpy as np
 
-st.cache_data.clear()  # 🚨 Forceer het legen van de cache vóór de import
-
-# 👇 Zet dit vóór de import!
+st.cache_data.clear()
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/../'))
 
-# ✅ Nu pas importeren
 from shop_mapping import SHOP_NAME_MAP
 from data_transformer import normalize_vemcount_response
 
-# -----------------------------
-# CONFIGURATIE
-# -----------------------------
 API_URL = st.secrets["API_URL"].rstrip("/")
 DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 
-# -----------------------------
-# API CLIENT (GEFIXT)
-# -----------------------------
 def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) -> pd.DataFrame:
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
@@ -70,10 +63,6 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
 
     return pd.DataFrame()
 
-
-# -----------------------------
-# SIMULATIE
-# -----------------------------
 def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
     df["weekday"] = pd.to_datetime(df["datetime"]).dt.day_name()
     df["hour"] = pd.to_datetime(df["datetime"]).dt.strftime("%H:00")
@@ -95,7 +84,6 @@ def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
     df_grouped["growth_pct"] = (df_grouped["extra_turnover"] / df_grouped["turnover"]).replace([float('inf'), -float('inf')], 0)
 
     return df_grouped.sort_values("extra_turnover", ascending=False)
-
 
 # -----------------------------
 # STREAMLIT UI
@@ -130,50 +118,10 @@ if st.button("🔍 Analyseer Dead Hours"):
     with st.spinner("Data ophalen en analyseren..."):
         df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour)
 
-    st.write("🔁 Rijen gevonden:", len(df_kpi))
-    st.dataframe(df_kpi.head())
-    st.write("✅ Columns in df_kpi:", df_kpi.columns.tolist())
-
     if not df_kpi.empty:
         df_results = find_deadhours_and_simulate(df_kpi)
 
-        st.subheader(f"📊 Dead hours voor {selected_name}")
-        display_df = df_results[[
-            "weekday", "hour", "count_in", "conversion_rate",
-            "sales_per_visitor", "sales_per_transaction",
-            "original", "uplift", "extra_turnover"
-        ]].copy()
-
-        display_df.columns = [
-            "Weekdag", "Uur", "Bezoekers", "Conversie (%)",
-            "SPV", "Bonbedrag (ATV)", "Originele omzet", "Nieuwe omzet", "Extra omzet"
-        ]
-
-        st.dataframe(display_df.style.format({
-            "Conversie (%)": "{:.1f}",
-            "SPV": "€{:,.2f}",
-            "Bonbedrag (ATV)": "€{:,.2f}",
-            "Originele omzet": "€{:,.0f}",
-            "Nieuwe omzet": "€{:,.0f}",
-            "Extra omzet": "€{:,.0f}"
-        }), use_container_width=True)
-
-        st.caption("💡 SPV = Conversie × Bonbedrag. Deze tabel laat zien of het omzetpotentieel vooral zit in het aantrekken van meer kopers (conversie) of in het verhogen van het bonbedrag.")
-
-        st.markdown("### 📈 Grootste omzetpotentie per uur")
-        fig = px.bar(
-            df_results,
-            x="extra_turnover",
-            y="weekday",
-            color="hour",
-            orientation="h",
-            labels={"extra_turnover": "Extra omzet (€)", "weekday": "Weekdag", "hour": "Uur"},
-            title="Dead Hours met hoogste omzetpotentie"
-        )
-        fig.update_layout(xaxis_tickprefix="€", yaxis_title="Weekdag")
-        st.plotly_chart(fig, use_container_width=True)
-
-        # ➕ NIEUWE: Beste Dead Hour per Weekdag
+        # ➕ Beste Dead Hour per Weekdag
         st.markdown("### 🔥 Dead Hours per Weekdag (gemiddelde omzetpotentie)")
 
         best_deadhours = (
@@ -187,20 +135,28 @@ if st.button("🔍 Analyseer Dead Hours"):
             .reset_index(drop=True)
         )
 
-        # Jaarpotentie realistisch
         vandaag = date.today()
         jaar_einde = date(vandaag.year, 12, 31)
         weken_over = ((jaar_einde - vandaag).days) // 7
-        best_deadhours["Jaarpotentie"] = best_deadhours["extra_turnover"] * weken_over
 
-        # Introregel
+        best_deadhours["Jaarpotentie"] = best_deadhours["extra_turnover"] * weken_over
+        best_deadhours["Omzet_in_dead_hour"] = 800 * weken_over  # placeholder value
+        best_deadhours["% groei op uur"] = best_deadhours["Jaarpotentie"] / best_deadhours["Omzet_in_dead_hour"] * 100
+        best_deadhours["% groei op uur"] = best_deadhours["% groei op uur"].replace([np.inf, -np.inf], 0)
+
         top_row = best_deadhours.iloc[0]
         st.markdown(f"💡 Grootste kans ligt op **{top_row['weekday']} om {top_row['hour']}** – omzetpotentie: **€{top_row['extra_turnover']:.0f} per week**")
 
-        # Plot
         ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
         best_deadhours = best_deadhours.sort_values("weekday")
+
+        st.dataframe(best_deadhours.style.format({
+            "extra_turnover": "€{:,.0f}",
+            "Jaarpotentie": "€{:,.0f}",
+            "Omzet_in_dead_hour": "€{:,.0f}",
+            "% groei op uur": "{:.1f}%"    
+        }), use_container_width=True)
 
         fig2 = px.bar(
             best_deadhours,
@@ -213,6 +169,5 @@ if st.button("🔍 Analyseer Dead Hours"):
         )
         fig2.update_layout(xaxis_tickprefix="€", yaxis_title="Weekdag", legend_title="Uur")
         st.plotly_chart(fig2, use_container_width=True)
-
     else:
         st.warning("⚠️ Geen data beschikbaar voor deze periode.")
