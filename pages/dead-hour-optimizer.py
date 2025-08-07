@@ -62,7 +62,7 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
 
 def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
     df["weekday"] = pd.to_datetime(df["datetime"]).dt.day_name()
-    df["hour"] = pd.to_datetime(df["datetime"]).dt.hour
+    df["hour"] = pd.to_datetime(df["datetime"]).dt.strftime("%H:00")
     df["datetime"] = pd.to_datetime(df["datetime"])
 
     df_grouped = df.groupby(["weekday", "hour"]).agg({
@@ -114,6 +114,20 @@ toggle = st.radio(
     horizontal=True
 )
 
+st.markdown("""
+    <style>
+    div.stButton > button:first-child {
+        background-color: #F04438;
+        color: white;
+        border: none;
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 btn = st.button("Analyseer Dead Hours", type="primary")
 if btn:
     start_hour, end_hour = opening_hours
@@ -122,11 +136,6 @@ if btn:
 
     if not df_kpi.empty:
         df_results = find_deadhours_and_simulate(df_kpi)
-
-        df_kpi["weekday"] = pd.to_datetime(df_kpi["datetime"]).dt.day_name()
-        df_kpi["hour"] = pd.to_datetime(df_kpi["datetime"]).dt.hour
-        omzet_lookup = df_kpi.groupby(["weekday", "hour"])["turnover"].mean().reset_index()
-        omzet_lookup.rename(columns={"turnover": "Omzet in dead hour"}, inplace=True)
 
         st.markdown("### 🔥 Dead Hours per Weekdag (gemiddelde omzetpotentie)")
 
@@ -148,8 +157,13 @@ if btn:
         best_deadhours["Jaarpotentie (52w)"] = best_deadhours["extra_turnover"] * 52
         best_deadhours["Jaarpotentie (realistisch)"] = best_deadhours["extra_turnover"] * weken_over
 
+        df_kpi["weekday"] = pd.to_datetime(df_kpi["datetime"]).dt.day_name()
+        df_kpi["hour"] = pd.to_datetime(df_kpi["datetime"]).dt.strftime("%H:00")
+        omzet_lookup = df_kpi.groupby(["weekday", "hour"])["turnover"].mean().reset_index()
+        omzet_lookup.rename(columns={"turnover": "Omzet in dead hour"}, inplace=True)
         best_deadhours = best_deadhours.merge(omzet_lookup, on=["weekday", "hour"], how="left")
         best_deadhours["Omzet in dead hour"] = best_deadhours["Omzet in dead hour"].fillna(0)
+
         best_deadhours["% Groei op uur"] = (
             best_deadhours["extra_turnover"] / best_deadhours["Omzet in dead hour"]
         ) * 100
@@ -159,43 +173,44 @@ if btn:
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
         best_deadhours = best_deadhours.sort_values("weekday")
 
-        
-        st.markdown("### 📋 Zwakste uur per weekdag")
+        top_row = best_deadhours.iloc[0]
+        st.markdown(f"💡 Grootste kans ligt op **{top_row['weekday']} om {top_row['hour']}** – omzetpotentie: **€{top_row['extra_turnover']:.0f} per week**")
 
-        st.dataframe(best_deadhours.rename(columns={
-            "hour": "Uur",
+        st.dataframe(best_deadhours[[
+            "weekday", "hour", "extra_turnover",
+            "Jaarpotentie (52w)", "Jaarpotentie (realistisch)",
+            "Omzet in dead hour", "% Groei op uur"
+        ]].rename(columns={
             "weekday": "Weekdag",
-            "count_in": "Gem. bezoekers",
-            "conversion_rate": "Conversie",
-            "sales_per_visitor": "SPV",
-            "extra_turnover": "Potentie (€)"
-        })[[
-            "Weekdag", "Uur", "Gem. bezoekers", "Conversie", "SPV", "Potentie (€)"
-        ]].style.format({
-            "Gem. bezoekers": "{:,.0f}",
-            "Conversie": "{:.1%}",
-            "SPV": "€{:.2f}",
-            "Potentie (€)": "€{:,.0f}"
+            "hour": "Uur",
+            "extra_turnover": "Extra omzet (per week)",
+        }).style.format({
+            "Extra omzet (per week)": "€{:,.0f}",
+            "Jaarpotentie (52w)": "€{:,.0f}",
+            "Jaarpotentie (realistisch)": "€{:,.0f}",
+            "Omzet in dead hour": "€{:,.0f}",
+            "% Groei op uur": "{:.1f}%"
         }), use_container_width=True)
 
+        st.caption("💡 *SPV = Conversie × Bonbedrag (ATV)* — deze tabel laat zien hoeveel extra omzet te winnen is per uur per weekdag.")
 
-        fig = px.bar(
+        fig2 = px.bar(
             best_deadhours.sort_values("weekday"),
             x="extra_turnover",
             y="weekday",
             color="hour",
             orientation="h",
-            title="Dead Hours met hoogste omzetpotentie per weekdag",
             labels={"extra_turnover": "Extra omzet (€)", "weekday": "Weekdag", "hour": "Uur"},
+            title="Dead Hours met hoogste omzetpotentie per weekdag",
             color_discrete_sequence=px.colors.sequential.Viridis,
-            category_orders={"weekday": ordered_days}
+            category_orders={"weekday": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
         )
-        fig.update_layout(
+        fig2.update_layout(
             xaxis_tickprefix="€",
             yaxis_title="Weekdag",
             legend_title="Uur"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig2, use_container_width=True)
 
     else:
         st.warning("⚠️ Geen data beschikbaar voor deze periode.")
