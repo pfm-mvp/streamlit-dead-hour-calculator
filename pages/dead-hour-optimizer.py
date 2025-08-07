@@ -183,9 +183,11 @@ if btn:
         week_sum = top_5["extra_turnover"].sum()
         year_sum = week_sum * weken_over
 
-        st.markdown(
-            f"💡 **Top 5 momenten** = €{week_sum:,.0f} / week ≈ **€{year_sum:,.0f} extra omzet/jaar**"
-        )
+        st.markdown(f"""
+    <div style='background-color:#fde68a;padding:1rem;border-radius:8px;margin-top:1rem;margin-bottom:1rem;'>
+        🚀 <strong>Top 5 dead hours = €{week_sum:,.0f} / week ≈ €{year_sum:,.0f} extra omzet/jaar</strong>
+    </div>
+""", unsafe_allow_html=True)
 
         ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
