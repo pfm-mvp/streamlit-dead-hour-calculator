@@ -6,16 +6,16 @@ import os
 import pandas as pd
 import requests
 import plotly.express as px
-from datetime import date
+from datetime import date, timedelta
 
-# 👇 Zet dit vóór de import!
+# 👇 Set up imports
 sys.path.append(os.path.abspath(os.path.dirname(__file__) + '/../'))
 
-# ✅ Nu pas importeren
+# ✅ Load shared data
 from shop_mapping import SHOP_NAME_MAP
 
 # -----------------------------
-# CONFIGURATIE
+# CONFIGURATION
 # -----------------------------
 API_URL = st.secrets["API_URL"].rstrip("/")
 DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
@@ -23,12 +23,13 @@ DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 # -----------------------------
 # API CLIENT
 # -----------------------------
-def get_hourly_kpis(shop_id: int, date_str: str) -> pd.DataFrame:
+def get_kpi_data(shop_id: int, start_date: str, end_date: str) -> pd.DataFrame:
     params = [
         ("data", shop_id),
         ("source", "shops"),
         ("period", "date"),
-        ("date", date_str),
+        ("from", start_date),
+        ("to", end_date),
         ("interval", "hour"),
         ("data_output", "count_in"),
         ("data_output", "conversion_rate"),
@@ -40,10 +41,9 @@ def get_hourly_kpis(shop_id: int, date_str: str) -> pd.DataFrame:
         response = requests.get(API_URL, params=params)
         if response.status_code == 200:
             df = pd.DataFrame(response.json())
-            df["hour"] = pd.to_datetime(df["timestamp"]).dt.strftime("%H:00")
-            df = df.groupby("hour")[[
-                "count_in", "conversion_rate", "turnover", "inside", "sales_per_visitor"
-            ]].sum().reset_index()
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+            df["weekday"] = df["timestamp"].dt.day_name()
+            df["hour"] = df["timestamp"].dt.strftime("%H:00")
             return df
         else:
             st.error(f"❌ Error fetching data: {response.status_code} - {response.text}")
@@ -52,70 +52,83 @@ def get_hourly_kpis(shop_id: int, date_str: str) -> pd.DataFrame:
     return pd.DataFrame()
 
 # -----------------------------
-# SIMULATIE
+# SIMULATION
 # -----------------------------
-def simulate_hourly_uplift(df: pd.DataFrame) -> pd.DataFrame:
-    avg_spv = df["sales_per_visitor"].mean()
-    df["original"] = df["turnover"]
-    df["uplift"] = df.apply(
+def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
+    df_grouped = df.groupby(["weekday", "hour"]).agg({
+        "count_in": "sum",
+        "conversion_rate": "mean",
+        "turnover": "sum",
+        "sales_per_visitor": "mean"
+    }).reset_index()
+
+    avg_spv = df_grouped["sales_per_visitor"].mean()
+    df_grouped["original"] = df_grouped["turnover"]
+    df_grouped["uplift"] = df_grouped.apply(
         lambda row: row["count_in"] * avg_spv if row["sales_per_visitor"] < avg_spv else row["turnover"], axis=1)
-    df["extra_turnover"] = df["uplift"] - df["turnover"]
-    df["growth_pct"] = (df["extra_turnover"] / df["turnover"]).replace([float('inf'), -float('inf')], 0)
-    return df
+    df_grouped["extra_turnover"] = df_grouped["uplift"] - df_grouped["turnover"]
+    df_grouped["growth_pct"] = (df_grouped["extra_turnover"] / df_grouped["turnover"]).replace([float('inf'), -float('inf')], 0)
+
+    result = df_grouped.sort_values("extra_turnover", ascending=False)
+    return result
 
 # -----------------------------
 # STREAMLIT UI
 # -----------------------------
 st.set_page_config(page_title="Dead Hour Optimizer", layout="wide")
 st.title("🧠 Dead Hour Optimizer")
-st.markdown("Simuleer omzetgroei door de zwakste uren te verbeteren.")
+st.markdown("Simulate potential revenue uplift by identifying consistently weak hours per weekday.")
 
 ID_TO_NAME = SHOP_NAME_MAP
 NAME_TO_ID = {v: k for k, v in SHOP_NAME_MAP.items()}
 
 default_names = [ID_TO_NAME.get(shop_id, str(shop_id)) for shop_id in DEFAULT_SHOP_IDS]
-selected_names = st.selectbox("Selecteer een winkel", options=list(NAME_TO_ID.keys()), index=0)
-shop_id = NAME_TO_ID[selected_names]
+selected_name = st.selectbox("Select a store", options=list(NAME_TO_ID.keys()), index=0)
+shop_id = NAME_TO_ID[selected_name]
 
-selected_date = st.date_input("Selecteer een datum", value=date.today())
+weeks = st.slider("Select analysis period (in weeks)", min_value=2, max_value=12, value=4)
+end_date = date.today()
+start_date = end_date - timedelta(weeks=weeks)
 
-# ✅ Data ophalen
-df = get_hourly_kpis(shop_id, selected_date.strftime("%Y-%m-%d"))
+st.markdown(f"🗓️ Analysis period: **{start_date.strftime('%Y-%m-%d')}** to **{end_date.strftime('%Y-%m-%d')}**")
 
-if not df.empty:
-    df_result = simulate_hourly_uplift(df)
+limit_top_3 = st.checkbox("Show only top 3 dead hours per weekday", value=False)
 
-    st.subheader(f"📊 Analyse voor {selected_names} op {selected_date.strftime('%A %d %B %Y')}")
-    worst_hour = df_result.sort_values("sales_per_visitor").iloc[0]
+if st.button("🔍 Analyze dead hours"):
+    with st.spinner("Fetching data and identifying opportunities..."):
+        df_kpi = get_kpi_data(shop_id, start_date.strftime("%Y-%m-%d"), end_date.strftime("%Y-%m-%d"))
 
-    st.markdown(f"### ❌ Slechtst presterend uur: **{worst_hour['hour']}**")
-    st.metric("Bezoekers", int(worst_hour["count_in"]))
-    st.metric("Conversie", f"{worst_hour['conversion_rate']:.1f}%")
-    st.metric("Bezoekerswaarde", f"€{worst_hour['sales_per_visitor']:,.2f}")
+    if not df_kpi.empty:
+        df_results = find_deadhours_and_simulate(df_kpi)
 
-    st.markdown("---")
-    st.markdown("### 💸 Simulatie omzetgroei per uur")
+        if limit_top_3:
+            df_results = df_results.sort_values("extra_turnover", ascending=False)
+            df_results = df_results.groupby("weekday").head(3).reset_index(drop=True)
 
-    display_df = df_result[["hour", "count_in", "conversion_rate", "sales_per_visitor", "original", "uplift", "extra_turnover"]]
-    display_df.columns = ["Uur", "Bezoekers", "Conversie (%)", "Bezoekerswaarde (SPV)", "Originele omzet", "Nieuwe omzet", "Extra omzet"]
+        st.subheader(f"📊 Dead hours for {selected_name}")
+        display_df = df_results[["weekday", "hour", "count_in", "conversion_rate", "sales_per_visitor", "original", "uplift", "extra_turnover"]].copy()
+        display_df.columns = ["Weekday", "Hour", "Visitors", "Conversion (%)", "Sales per Visitor (SPV)", "Original Turnover", "Optimized Turnover", "Extra Turnover"]
 
-    st.dataframe(display_df.style.format({
-        "Conversie (%)": "{:.1f}",
-        "Bezoekerswaarde (SPV)": "€{:,.2f}",
-        "Originele omzet": "€{:,.0f}",
-        "Nieuwe omzet": "€{:,.0f}",
-        "Extra omzet": "€{:,.0f}"
-    }), use_container_width=True)
+        st.dataframe(display_df.style.format({
+            "Conversion (%)": "{:.1f}",
+            "Sales per Visitor (SPV)": "€{:,.2f}",
+            "Original Turnover": "€{:,.0f}",
+            "Optimized Turnover": "€{:,.0f}",
+            "Extra Turnover": "€{:,.0f}"
+        }), use_container_width=True)
 
-    fig = px.bar(
-        df_result,
-        x="hour",
-        y="extra_turnover",
-        labels={"hour": "Uur", "extra_turnover": "Extra omzet (€)"},
-        title="Uren met het grootste omzetpotentieel",
-        text_auto='.2s'
-    )
-    fig.update_layout(yaxis_tickprefix="€", xaxis_title="Uur van de dag")
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.warning("⚠️ Geen data gevonden voor deze combinatie van winkel en datum.")
+        st.markdown("### 📈 Highest Potential Dead Hours")
+        fig = px.bar(
+            df_results,
+            x="extra_turnover",
+            y="weekday",
+            color="hour",
+            orientation="h",
+            labels={"extra_turnover": "Extra Turnover (€)", "weekday": "Weekday", "hour": "Hour"},
+            title="Dead Hours with Highest Potential"
+        )
+        fig.update_layout(xaxis_tickprefix="€", yaxis_title="Weekday")
+        st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        st.warning("⚠️ No data found for this period.")
