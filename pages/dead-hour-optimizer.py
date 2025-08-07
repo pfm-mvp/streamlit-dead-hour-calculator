@@ -203,6 +203,7 @@ if btn:
             labels={"extra_turnover": "Extra omzet (€)", "weekday": "Weekdag", "hour": "Uur"},
             title="Dead Hours met hoogste omzetpotentie per weekdag",
             color_discrete_sequence=px.colors.sequential.Viridis
+            category_orders={"weekday": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
         )
         fig2.update_layout(
             xaxis_tickprefix="€",
