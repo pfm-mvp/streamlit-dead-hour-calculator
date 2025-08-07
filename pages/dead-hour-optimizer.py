@@ -158,6 +158,8 @@ if st.button("🔍 Analyseer Dead Hours"):
             "Extra omzet": "€{:,.0f}"
         }), use_container_width=True)
 
+        st.caption("💡 SPV = Conversie × Bonbedrag. Deze tabel laat zien of het omzetpotentieel vooral zit in het aantrekken van meer kopers (conversie) of in het verhogen van het bonbedrag.")
+
         st.markdown("### 📈 Grootste omzetpotentie per uur")
         fig = px.bar(
             df_results,
