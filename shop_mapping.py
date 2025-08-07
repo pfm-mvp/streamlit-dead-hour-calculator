@@ -1,5 +1,5 @@
 SHOP_NAME_MAP = {
-    26304: "Amsterdam",
+    30058: "Nijmegen",
     26560: "Paris",
     26509: "Berlin",
     26480: "Zurich",
