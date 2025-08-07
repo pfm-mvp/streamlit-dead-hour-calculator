@@ -135,7 +135,7 @@ if btn:
         df_kpi = get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour)
 
 
-if not df_kpi.empty:
+    if not df_kpi.empty:
     df_results = find_deadhours_and_simulate(df_kpi)
 
     # 🔥 Dead Hours per Weekdag
@@ -215,5 +215,5 @@ if not df_kpi.empty:
         legend_title="Uur"
     )
     st.plotly_chart(fig2, use_container_width=True)
-    else:
+else:
         st.warning("⚠️ Geen data beschikbaar voor deze periode.")
