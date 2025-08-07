@@ -109,7 +109,6 @@ opening_hours = st.slider(
 
 min_visitors = st.slider("Minimaal gemiddeld aantal bezoekers per uur (filter)", min_value=0, max_value=20, value=2, step=1)
 
-filter_transactions = st.checkbox("Toon alleen uren met transacties")
 
 toggle = st.radio(
     "🔁 Toon omzetpotentie op basis van:",
@@ -177,9 +176,7 @@ if btn:
         best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]] = best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]].fillna(0)
 
         best_deadhours = best_deadhours[best_deadhours["Bezoekers"] >= min_visitors]
-        if filter_transactions:
-            best_deadhours = best_deadhours[best_deadhours["ATV (€)"] > 0]
-
+        
         best_deadhours["Conversie (%)"] = best_deadhours["Conversie (%)"].apply(lambda x: x*100 if x < 1 else x)
 
         top_5 = best_deadhours.nlargest(5, "extra_turnover")
