@@ -7,6 +7,7 @@ import pandas as pd
 import requests
 import plotly.express as px
 from datetime import date, timedelta
+from urllib.parse import urlencode
 
 st.cache_data.clear()  # 🚨 Forceer het legen van de cache vóór de import
 
@@ -46,8 +47,13 @@ def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) 
     ]
 
     try:
-        response = requests.post(API_URL, json={key: value for key, value in params})
+        # HACK: manual querystring to avoid encoding :
+        query_string = urlencode(params, doseq=True).replace('%3A', ':')
+        url = f"{API_URL}?{query_string}"
+        response = requests.post(url)
+
         st.write("📦 API response (debug)", response.text)
+
 
         if response.status_code == 200:
             raw_data = response.json()
