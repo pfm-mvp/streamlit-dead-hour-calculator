@@ -29,8 +29,8 @@ def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
 
-    params = [("data", shop_id)]
-    params += [
+    params = [
+        ("data", shop_id),
         ("data_output", "count_in"),
         ("data_output", "conversion_rate"),
         ("data_output", "turnover"),
@@ -41,8 +41,9 @@ def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
         ("form_date_to", end_date),
         ("step", "hour")
     ]
+
     try:
-        response = requests.get(API_URL, params=params)
+        response = requests.post(API_URL, params=params)
         if response.status_code == 200:
             raw_data = response.json()
             if isinstance(raw_data, list) and len(raw_data) > 0:
