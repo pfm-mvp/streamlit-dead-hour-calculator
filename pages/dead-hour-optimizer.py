@@ -43,7 +43,7 @@ def get_kpi_data_for_store(shop_id, start_date, end_date) -> pd.DataFrame:
     ]
 
     try:
-        response = requests.post(API_URL, params=params)
+        response = requests.post(API_URL, data=params)
         if response.status_code == 200:
             raw_data = response.json()
             if isinstance(raw_data, list) and len(raw_data) > 0:
