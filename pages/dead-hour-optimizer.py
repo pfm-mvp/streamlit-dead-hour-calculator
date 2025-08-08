@@ -109,7 +109,6 @@ opening_hours = st.slider(
 
 min_visitors = st.slider("Minimaal gemiddeld aantal bezoekers per uur (filter)", min_value=0, max_value=20, value=2, step=1)
 
-
 toggle = st.radio(
     "🔁 Toon omzetpotentie op basis van:",
     ["Resterend jaar", "Volledig jaar (52 weken)"],
@@ -176,7 +175,6 @@ if btn:
         best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]] = best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]].fillna(0)
 
         best_deadhours = best_deadhours[best_deadhours["Bezoekers"] >= min_visitors]
-        
         best_deadhours["Conversie (%)"] = best_deadhours["Conversie (%)"].apply(lambda x: x*100 if x < 1 else x)
 
         top_5 = best_deadhours.nlargest(5, "extra_turnover")
@@ -184,10 +182,17 @@ if btn:
         year_sum = week_sum * weken_over
 
         st.markdown(f"""
-    <div style='background-color:#fde68a;padding:1rem;border-radius:8px;margin-top:1rem;margin-bottom:1rem;'>
-        🚀 <strong>Top 5 dead hours = €{week_sum:,.0f} / week ≈ €{year_sum:,.0f} extra omzet/jaar</strong>
-    </div>
-""", unsafe_allow_html=True)
+            <div style='background-color: #FEAC76;
+                        color: #000000;
+                        padding: 1.5rem;
+                        border-radius: 0.75rem;
+                        font-size: 1.25rem;
+                        font-weight: 600;
+                        text-align: center;
+                        margin-bottom: 1.5rem;'>
+                🚀 The potential revenue growth is <span style='font-size:1.5rem;'>€{str(f"{week_sum:,.0f}").replace(",", ".")}</span>
+            </div>
+        """, unsafe_allow_html=True)
 
         ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
@@ -231,18 +236,18 @@ if btn:
             category_orders={"weekday": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
         )
         fig2.update_layout(
-    xaxis_tickprefix="€",
-    yaxis_title="Weekdag",
-    legend_title="Uur",
-    hoverlabel=dict(
-        namelength=-1,
-        bgcolor="white",
-        font_size=14,
-        font_family="Arial"
-    ),
-    hovermode="closest",
-    xaxis_tickformat=",.2f"
-)
+            xaxis_tickprefix="€",
+            yaxis_title="Weekdag",
+            legend_title="Uur",
+            hoverlabel=dict(
+                namelength=-1,
+                bgcolor="white",
+                font_size=14,
+                font_family="Arial"
+            ),
+            hovermode="closest",
+            xaxis_tickformat=",.2f"
+        )
         st.plotly_chart(fig2, use_container_width=True)
 
     else:
