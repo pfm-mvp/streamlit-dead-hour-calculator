@@ -190,7 +190,7 @@ if btn:
                         font-weight: 600;
                         text-align: center;
                         margin-bottom: 1.5rem;'>
-                🚀 The potential revenue growth is <span style='font-size:1.5rem;'>€{str(f"{week_sum:,.0f}").replace(",", ".")}</span>
+                🚀 Top 5 dead hours leveren potentieel op: <span style='font-size:1.5rem;'>€{str(f"{week_sum:,.0f}").replace(",", ".")}</span> per week ≈ €{str(f"{year_sum:,.0f}").replace(",", ".")} per jaar
             </div>
         """, unsafe_allow_html=True)
 
