@@ -19,6 +19,35 @@ from data_transformer import normalize_vemcount_response
 API_URL = st.secrets["API_URL"].rstrip("/")
 DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 
+# ─────────────────────────  Styling  ─────────────────────────
+st.set_page_config(page_title="Dead Hour Optimizer", layout="wide")
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&display=swap');
+html, body, [class*="css"] { font-family: 'Instrument Sans', sans-serif !important; }
+[data-baseweb="tag"] { background:#9E77ED !important; color:#fff !important; }
+button[data-testid="stBaseButton-secondary"]{
+  background:#F04438!important;color:#fff!important;border-radius:16px!important;
+  font-weight:600!important;border:none!important;padding:0.6rem 1.4rem!important;
+}
+button[data-testid="stBaseButton-secondary"]:hover{background:#d13c30!important;cursor:pointer;}
+.card{border:1px solid #eee;border-radius:12px;padding:14px 16px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+.kpi{font-size:1.2rem;font-weight:700;font-variant-numeric:tabular-nums}
+.note{color:#667085}
+.block-orange{background:#FFF7ED;border:1px solid #FEAC76;border-radius:12px;padding:18px}
+.h-gap{height:14px}
+</style>
+""", unsafe_allow_html=True)
+
+pfm_purple = "#762181"
+
+def fmt_eur(x):
+    try:
+        return ("€{:,.0f}".format(float(x))).replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "€0"
+
+# ─────────────────────────  Data functies  ─────────────────────────
 def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) -> pd.DataFrame:
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
@@ -81,10 +110,7 @@ def find_deadhours_and_simulate(df: pd.DataFrame) -> pd.DataFrame:
 
     return df_grouped.sort_values("extra_turnover", ascending=False)
 
-# -----------------------------
-# STREAMLIT UI
-# -----------------------------
-st.set_page_config(page_title="Dead Hour Optimizer", layout="wide")
+# ─────────────────────────  UI  ─────────────────────────
 st.title("🧐 Dead Hour Optimizer")
 st.markdown("Simuleer omzetgroei door structureel zwakke uren te verbeteren op basis van sales per visitor.")
 
@@ -98,38 +124,13 @@ days = st.slider("Analyseer over hoeveel dagen terug?", min_value=7, max_value=9
 end_date = date.today()
 start_date = end_date - timedelta(days=days)
 
-opening_hours = st.slider(
-    "⏰ Selecteer openingstijden",
-    min_value=0,
-    max_value=24,
-    value=(9, 19),
-    step=1,
-    format="%02d:00"
-)
-
+opening_hours = st.slider("⏰ Selecteer openingstijden", min_value=0, max_value=24, value=(9, 19), step=1, format="%02d:00")
 min_visitors = st.slider("Minimaal gemiddeld aantal bezoekers per uur (filter)", min_value=0, max_value=20, value=2, step=1)
 
-toggle = st.radio(
-    "🔁 Toon omzetpotentie op basis van:",
-    ["Resterend jaar", "Volledig jaar (52 weken)"],
-    horizontal=True
-)
+toggle = st.radio("🔁 Toon omzetpotentie op basis van:", ["Resterend jaar", "Volledig jaar (52 weken)"], horizontal=True)
 
-st.markdown("""
-    <style>
-    div.stButton > button:first-child {
-        background-color: #F04438;
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 1rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
+btn = st.button("🔍 Analyseer Dead Hours", type="secondary")
 
-btn = st.button("Analyseer Dead Hours", type="primary")
 if btn:
     start_hour, end_hour = opening_hours
     with st.spinner("Data ophalen en analyseren..."):
@@ -137,8 +138,6 @@ if btn:
 
     if not df_kpi.empty:
         df_results = find_deadhours_and_simulate(df_kpi)
-
-        st.markdown("### 🔥 Dead Hours per Weekdag (gemiddelde omzetpotentie)")
 
         best_deadhours = (
             df_results[df_results["extra_turnover"] > 0]
@@ -172,8 +171,6 @@ if btn:
         })
 
         best_deadhours = best_deadhours.merge(kpi_lookup, on=["weekday", "hour"], how="left")
-        best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]] = best_deadhours[["Bezoekers", "Conversie (%)", "ATV (€)"]].fillna(0)
-
         best_deadhours = best_deadhours[best_deadhours["Bezoekers"] >= min_visitors]
         best_deadhours["Conversie (%)"] = best_deadhours["Conversie (%)"].apply(lambda x: x*100 if x < 1 else x)
 
@@ -182,71 +179,40 @@ if btn:
         year_sum = week_sum * weken_over
 
         st.markdown(f"""
-            <div style='background-color: #FEAC76;
-                        color: #000000;
-                        padding: 1.5rem;
-                        border-radius: 0.75rem;
-                        font-size: 1.25rem;
-                        font-weight: 600;
-                        text-align: center;
-                        margin-bottom: 1.5rem;'>
-                🚀 Top 5 dead hours leveren potentieel op: <span style='font-size:1.5rem;'>€{str(f"{week_sum:,.0f}").replace(",", ".")}</span> per week ≈ €{str(f"{year_sum:,.0f}").replace(",", ".")} per jaar
-            </div>
-        """, unsafe_allow_html=True)
+        <div class="block-orange">
+          <div style="font-weight:700;font-size:1.05rem">🚀 Top 5 dead hours leveren potentieel op:</div>
+          <div class="kpi" style="margin-top:4px">{fmt_eur(week_sum)} per week ≈ {fmt_eur(year_sum)} per jaar</div>
+          <div class="note">Gebaseerd op de geselecteerde analyseperiode en filters.</div>
+        </div>""", unsafe_allow_html=True)
 
         ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
         best_deadhours = best_deadhours.sort_values("weekday")
 
-        with st.expander("📊 Uitleg kolommen"):
-            st.markdown("""
-            - **Bezoekers** = Gemiddeld aantal bezoekers per week op dat uur
-            - **Conversie (%)** = Gemiddeld conversiepercentage (aantal transacties / aantal bezoekers)
-            - **ATV (€)** = Gemiddeld bonbedrag per transactie op dat uur
-            """)
-
-        st.dataframe(best_deadhours[[
-            "weekday", "hour", "extra_turnover",
-            "Jaarpotentie (52w)", "Jaarpotentie (realistisch)",
-            "Bezoekers", "Conversie (%)", "ATV (€)"
-        ]].rename(columns={
+        st.dataframe(best_deadhours.rename(columns={
             "weekday": "Weekdag",
             "hour": "Uur",
-            "extra_turnover": "Extra omzet (per week)",
-        }).style.format({
-            "Extra omzet (per week)": "€{:,.0f}",
-            "Jaarpotentie (52w)": "€{:,.0f}",
-            "Jaarpotentie (realistisch)": "€{:,.0f}",
-            "Bezoekers": "{:,.0f}",
-            "Conversie (%)": "{:.1f}%",
-            "ATV (€)": "€{:,.0f}"
+            "extra_turnover": "Extra omzet (per week)"
         }), use_container_width=True)
 
-        st.caption("💡 *SPV = Conversie × Bonbedrag (ATV)* — deze tabel laat zien hoeveel extra omzet te winnen is per uur per weekdag.")
-
+        # PFM-paars + EU-hover bar chart
+        best_deadhours_sorted = best_deadhours.copy()
+        best_deadhours_sorted["hover_val"] = best_deadhours_sorted["extra_turnover"].map(fmt_eur)
         fig2 = px.bar(
-            best_deadhours.sort_values("weekday"),
+            best_deadhours_sorted,
             x="extra_turnover",
             y="weekday",
             color="hour",
             orientation="h",
             labels={"extra_turnover": "Extra omzet (€)", "weekday": "Weekdag", "hour": "Uur"},
-            title="Dead Hours met hoogste omzetpotentie per weekdag",
-            color_discrete_sequence=px.colors.sequential.Viridis,
-            category_orders={"weekday": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]}
+            color_discrete_sequence=[pfm_purple],
+            category_orders={"weekday": ordered_days},
+            custom_data=["hover_val"]
         )
-        fig2.update_layout(
-            xaxis_tickprefix="€",
-            yaxis_title="Weekdag",
-            legend_title="Uur",
-            hoverlabel=dict(
-                namelength=-1,
-                bgcolor="white",
-                font_size=14,
-                font_family="Arial"
-            ),
-            hovermode="closest",
-            xaxis_tickformat=",.2f"
+        fig2.update_traces(
+            text=best_deadhours_sorted["extra_turnover"].map(lambda v: ("{:,.0f}".format(v)).replace(",", ".")),
+            textposition="outside",
+            hovertemplate="%{y} - %{customdata[0]}"
         )
         st.plotly_chart(fig2, use_container_width=True)
 
