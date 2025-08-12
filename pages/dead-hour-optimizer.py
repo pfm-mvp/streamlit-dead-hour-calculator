@@ -19,7 +19,7 @@ from data_transformer import normalize_vemcount_response
 API_URL = st.secrets["API_URL"].rstrip("/")
 DEFAULT_SHOP_IDS = list(SHOP_NAME_MAP.keys())
 
-# ─────────────────────────  Styling  ─────────────────────────
+# ─────────────────────────  Styling (matcht sqm-calc)  ─────────────────────────
 st.set_page_config(page_title="Dead Hour Optimizer", layout="wide")
 st.markdown("""
 <style>
@@ -39,15 +39,35 @@ button[data-testid="stBaseButton-secondary"]:hover{background:#d13c30!important;
 </style>
 """, unsafe_allow_html=True)
 
-pfm_purple = "#762181"
+# Kleuren
+pfm_purple = "#762181"  # ter referentie; bars gebruiken Viridis zoals gevraagd
 
+# ─────────────────────────  Format helpers (EU)  ─────────────────────────
 def fmt_eur(x):
     try:
         return ("€{:,.0f}".format(float(x))).replace(",", "X").replace(".", ",").replace("X", ".")
     except Exception:
         return "€0"
 
-# ─────────────────────────  Data functies  ─────────────────────────
+def fmt_eur2(x):
+    try:
+        return ("€{:,.2f}".format(float(x))).replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "€0,00"
+
+def fmt_pct(x):
+    try:
+        return ("{:,.1f}%".format(float(x))).replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "0,0%"
+
+def fmt_int(x):
+    try:
+        return ("{:,.0f}".format(float(x))).replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "0"
+
+# ─────────────────────────  Data functies (ongewijzigd)  ─────────────────────────
 def get_kpi_data_for_store(shop_id, start_date, end_date, start_hour, end_hour) -> pd.DataFrame:
     start_date = pd.to_datetime(start_date).strftime("%Y-%m-%d")
     end_date = pd.to_datetime(end_date).strftime("%Y-%m-%d")
@@ -178,41 +198,65 @@ if btn:
         week_sum = top_5["extra_turnover"].sum()
         year_sum = week_sum * weken_over
 
+        # Oranje summary box (als in sqm-calc) + witregel erna
         st.markdown(f"""
         <div class="block-orange">
           <div style="font-weight:700;font-size:1.05rem">🚀 Top 5 dead hours leveren potentieel op:</div>
           <div class="kpi" style="margin-top:4px">{fmt_eur(week_sum)} per week ≈ {fmt_eur(year_sum)} per jaar</div>
           <div class="note">Gebaseerd op de geselecteerde analyseperiode en filters.</div>
         </div>""", unsafe_allow_html=True)
+        st.markdown('<div class="h-gap"></div>', unsafe_allow_html=True)  # ← witregel
 
+        # Sortering weekdagen
         ordered_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
         best_deadhours["weekday"] = pd.Categorical(best_deadhours["weekday"], categories=ordered_days, ordered=True)
-        best_deadhours = best_deadhours.sort_values("weekday")
+        best_deadhours = best_deadhours.sort_values(["weekday", "hour"])
 
-        st.dataframe(best_deadhours.rename(columns={
+        # Tabel in EU‑notatie (zoals gevraagd)
+        disp = best_deadhours[[
+            "weekday", "hour", "extra_turnover",
+            "Jaarpotentie (52w)", "Jaarpotentie (realistisch)",
+            "Bezoekers", "Conversie (%)", "ATV (€)"
+        ]].rename(columns={
             "weekday": "Weekdag",
             "hour": "Uur",
             "extra_turnover": "Extra omzet (per week)"
-        }), use_container_width=True)
+        })
 
-        # PFM-paars + EU-hover bar chart
+        st.dataframe(
+            disp.style.format({
+                "Extra omzet (per week)": fmt_eur,
+                "Jaarpotentie (52w)": fmt_eur,
+                "Jaarpotentie (realistisch)": fmt_eur,
+                "Bezoekers": fmt_int,
+                "Conversie (%)": fmt_pct,
+                "ATV (€)": fmt_eur
+            }),
+            use_container_width=True
+        )
+
+        st.caption("💡 *SPV = Conversie × Bonbedrag (ATV)* — deze tabel laat zien hoeveel extra omzet te winnen is per uur per weekdag.")
+
+        # Bar chart: Viridis palet per 'uur' + EU-hover
         best_deadhours_sorted = best_deadhours.copy()
         best_deadhours_sorted["hover_val"] = best_deadhours_sorted["extra_turnover"].map(fmt_eur)
+
         fig2 = px.bar(
-            best_deadhours_sorted,
+            best_deadhours_sorted.sort_values("weekday"),
             x="extra_turnover",
             y="weekday",
             color="hour",
             orientation="h",
             labels={"extra_turnover": "Extra omzet (€)", "weekday": "Weekdag", "hour": "Uur"},
-            color_discrete_sequence=[pfm_purple],
+            title="Dead Hours met hoogste omzetpotentie per weekdag",
+            color_discrete_sequence=px.colors.sequential.Viridis,  # ← verschillende kleuren per uur
             category_orders={"weekday": ordered_days},
             custom_data=["hover_val"]
         )
         fig2.update_traces(
             text=best_deadhours_sorted["extra_turnover"].map(lambda v: ("{:,.0f}".format(v)).replace(",", ".")),
             textposition="outside",
-            hovertemplate="%{y} - %{customdata[0]}"
+            hovertemplate="%{y} • %{customdata[0]}<br>Uur: %{color}"
         )
         st.plotly_chart(fig2, use_container_width=True)
 
